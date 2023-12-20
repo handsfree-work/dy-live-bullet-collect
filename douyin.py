@@ -101,11 +101,11 @@ class Douyin:
                 self.ws_conn = ws_conn
                 await self._on_open(self.ws_conn)
                 async for message in ws_conn:
-                    await self._on_message(self.ws_conn,message)
+                    await self._on_message(self.ws_conn, message)
         except websockets.ConnectionClosedError as e:
-            await self._on_close(e,self.ws_conn,'close')
+            await self._on_close(e, self.ws_conn, 'close')
         except Exception as e:
-            await self._on_error(e,self.ws_conn)
+            await self._on_error(e, self.ws_conn)
 
     def parseLiveRoomUrl(self):
         """
@@ -126,6 +126,9 @@ class Douyin:
         res_room = re.search(r'roomId\\":\\"(\d+)\\"', res)
         # 获取直播主播的uid和昵称等信息
         live_room_search = re.search(r'owner\\":(.*?),\\"room_auth', res)
+        if not live_room_search:
+            print("未获取到live_room信息,直播间可能已经关闭")
+            return
         # 如果没有获取到live_room信息，很有可能是直播已经关闭了，待优化
         live_room_res = live_room_search.group(1).replace('\\"', '"')
         live_room_info = json.loads(live_room_res)
@@ -148,6 +151,7 @@ class Douyin:
         print(f"直播流FLV地址是: {res_stream_flv}")
         # 开始获取直播间排行
         live_rank.interval_rank(liveRoomId)
+
     def _send_ask(self, log_id, internal_ext):
         ack_pack = dy_pb2.PushFrame()
         ack_pack.logId = log_id
@@ -168,7 +172,6 @@ class Douyin:
             match msg.method:
                 case 'WebcastChatMessage':
                     await self._parse_chat_msg(msg.payload)
-
 
     def _add_to_dataframe(self, new_row, sheet_name):
         save_msg_number = config.content['save_msg_number']

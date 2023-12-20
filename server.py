@@ -8,17 +8,15 @@ import aiohttp
 import inspect
 import ctypes
 
-
-
 from typing import List, Union
 
 from aiohttp import web
 
 from douyin import Douyin, DouyinMessage
 
-
-
 sockets: List[web.WebSocketResponse] = []
+
+
 class Client:
     def __init__(self, ws: web.WebSocketResponse):
         self.room_id = None
@@ -27,28 +25,35 @@ class Client:
         self.dy = None
         pass
 
-    async def set_room_id(self, room_id: str):
+    async def connect(self, room_id: str):
         self.room_id = room_id
         url = f"https://live.douyin.com/{room_id}"
         dy = Douyin(url, on_message=self.on_message)
         self.dy = dy
-        asyncio.create_task(dy.connect_web_socket())
+        asyncio.create_task(self.connect_retry())
+
+    async def connect_retry(self):
+        while True:
+            try:
+                await self.dy.connect_web_socket()
+                break
+            except Exception as e:
+                print(e)
+                print("连接失败，5秒后重试")
+                msg = DouyinMessage("control", "connect_failed", "", "连接失败，5秒后重试")
+                await self.on_message(msg)
+                await asyncio.sleep(5)
 
     async def close(self):
-        await  self.dy.ws_conn.close()
+        await self.dy.ws_conn.close()
         pass
 
-    
     async def on_message(self, message: DouyinMessage):
-        
-        await self.ws.send_json({**message.__dict__,'client_id':self.client_id})
-
-
+        await self.ws.send_json({**message.__dict__, 'client_id': self.client_id})
 
 
 async def on_message(client: Client, message: str):
     print(message)
-
 
 
 async def wshandler(request: web.Request) -> Union[web.WebSocketResponse, web.Response]:
@@ -57,29 +62,27 @@ async def wshandler(request: web.Request) -> Union[web.WebSocketResponse, web.Re
     await ws.prepare(request)  # 等待websocket连接
     sockets.append(ws)
     client = Client(ws)
-    id= request.query['id']
+    id = request.query['id']
     client.client_id = request.query['client_id']
-    await client.set_room_id(id)
+    await client.connect(id)
     # print(ws.__dict__)
     async for msg in ws:
         print(msg.type)
         if msg.type == aiohttp.WSMsgType.TEXT:  # type: ignore[misc]
-            info =json.loads(msg.data)
-            if  info['type'] == "control" and  info['data']=="close":  # type: ignore[misc]
+            info = json.loads(msg.data)
+            if info['type'] == "control" and info['data'] == "close":  # type: ignore[misc]
                 # print(dir(client))
                 await client.dy.ws_conn.close()
                 await ws.close()
-            elif  info['type'] == "msg":
+            elif info['type'] == "msg":
                 print(info)
-                await on_message(client,info['data'])
+                await on_message(client, info['data'])
             else:
                 # 待定
                 print(info)
         elif msg.type == aiohttp.WSMsgType.ERROR:  # type: ignore[misc]
             print('ws connection closed with exception %s' %
                   ws.exception())
-    
-
 
     print('websocket connection closed')
     await client.close()
@@ -91,9 +94,6 @@ async def on_shutdown(app: web.WebSocketResponse) -> None:
         await ws.close()
 
 
-
-
-
 def init() -> web.Application:
     app = web.Application()
 
@@ -101,4 +101,4 @@ def init() -> web.Application:
     return app
 
 
-web.run_app(init(),port=9000)
+web.run_app(init(), port=9000)
