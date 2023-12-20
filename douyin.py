@@ -107,7 +107,7 @@ class Douyin:
         except Exception as e:
             await self._on_error(e,self.ws_conn)
 
-  def parseLiveRoomUrl(self):
+    def parseLiveRoomUrl(self):
         """
         解析直播的弹幕websocket地址
         :param url:直播地址
