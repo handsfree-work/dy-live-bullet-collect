@@ -109,11 +109,11 @@ class Douyin:
                     await self._on_message(self.ws_conn, message)
         except websockets.ConnectionClosedError as e:
             logger.error(e)
-            logger.error("直播间已关闭")
+            logger.error("直播间连接已关闭")
             await self._on_close(e, self.ws_conn, 'close')
         except Exception as e:
             logger.error(e)
-            logger.error("直播间异常关闭")
+            logger.error("直播间连接异常")
             await self._on_error(e, self.ws_conn)
 
     def parseLiveRoomUrl(self):
@@ -179,10 +179,13 @@ class Douyin:
         if payload_package.needAck:
             self._send_ask(msg_pack.logId, payload_package.internalExt)
         for msg in payload_package.messagesList:
-            # logger.info(str(msg))
+            logger.info(str(msg.method))
             match msg.method:
                 case 'WebcastChatMessage':
                     await self._parse_chat_msg(msg.payload)
+                case 'WebcastRoomStatsMessage':
+                    # await self._parse_stats_msg(msg.payload)
+                    pass
 
     def _add_to_dataframe(self, new_row, sheet_name):
         save_msg_number = config.content['save_msg_number']
@@ -369,3 +372,13 @@ class Douyin:
         new_row = {'时间': formatted_time, '用户': user_name}
         self._add_to_dataframe(new_row, '入场')
         print(f"{formatted_time} [入场] {user_name} 进入直播间")
+
+    async def _parse_stats_msg(self, payload):
+        payload_pack = dy_pb2.RoomStatsMessage()
+        payload_pack.ParseFromString(payload)
+        formatted_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(payload_pack.eventTime))
+        user_name = payload_pack.user.nickName
+        sex = payload_pack.user.gender
+        content = payload_pack.content
+        message = DouyinMessage(formatted_time, '状态', user_name, content)
+        await self.__on_message__(message)
