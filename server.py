@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 
 import aiohttp
 # The extra strict mypy settings are here to help test that `Application[AppKey()]`
@@ -15,6 +16,8 @@ from aiohttp import web
 from douyin import Douyin, DouyinMessage
 
 sockets: List[web.WebSocketResponse] = []
+
+
 
 
 class Client:
@@ -36,11 +39,10 @@ class Client:
         while True:
             try:
                 await self.dy.connect_web_socket()
-                break
+                return
             except Exception as e:
                 print(e)
-                print("连接失败，5秒后重试")
-                msg = DouyinMessage("control", "connect_failed", "", "连接失败，5秒后重试")
+                msg = DouyinMessage("control", "connect_failed", "", "连接失败，直播间可能还未开播，5秒后重试")
                 await self.on_message(msg)
                 await asyncio.sleep(5)
 
@@ -49,6 +51,8 @@ class Client:
         pass
 
     async def on_message(self, message: DouyinMessage):
+        if self.ws.status == 3:
+            return  # 已经关闭
         await self.ws.send_json({**message.__dict__, 'client_id': self.client_id})
 
 
@@ -84,7 +88,7 @@ async def wshandler(request: web.Request) -> Union[web.WebSocketResponse, web.Re
             print('ws connection closed with exception %s' %
                   ws.exception())
 
-    print('websocket connection closed')
+    print('客户端已下线，直播连接结束')
     await client.close()
     return ws
 

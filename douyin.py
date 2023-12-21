@@ -12,6 +12,7 @@ import pandas as pd
 import config
 import live_rank
 from protobuf import dy_pb2
+from utils.logger import logger
 
 
 class DouyinMessage:
@@ -85,12 +86,15 @@ class Douyin:
 
     async def connect_web_socket(self):
         self._get_room_info()
-        self.parseLiveRoomUrl()
         if self.room_info is None:
             logging.error(f"获取直播间({self.url})信息失败")
-            return
+            raise Exception(f"获取直播间({self.url})信息失败")
+        ret = self.parseLiveRoomUrl()
+        room_id = self.room_info.get('room_id')
+        if not ret:
+            raise Exception(f"直播间({room_id})还未开播")
 
-        ws_url = config.content['ws']['origin_url'].replace("%s", self.room_info.get('room_id'))
+        ws_url = config.content['ws']['origin_url'].replace("%s", room_id)
         headers = {
             'cookie': 'ttwid=' + self.room_info.get('ttwid'),
             'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -98,13 +102,18 @@ class Douyin:
         }
         try:
             async with websockets.connect(ws_url, extra_headers=headers) as ws_conn:
+                logger.info("直播间连接成功，等待消息推送")
                 self.ws_conn = ws_conn
                 await self._on_open(self.ws_conn)
                 async for message in ws_conn:
                     await self._on_message(self.ws_conn, message)
         except websockets.ConnectionClosedError as e:
+            logger.error(e)
+            logger.error("直播间已关闭")
             await self._on_close(e, self.ws_conn, 'close')
         except Exception as e:
+            logger.error(e)
+            logger.error("直播间异常关闭")
             await self._on_error(e, self.ws_conn)
 
     def parseLiveRoomUrl(self):
@@ -128,7 +137,7 @@ class Douyin:
         live_room_search = re.search(r'owner\\":(.*?),\\"room_auth', res)
         if not live_room_search:
             print("未获取到live_room信息,直播间可能已经关闭")
-            return
+            return False
         # 如果没有获取到live_room信息，很有可能是直播已经关闭了，待优化
         live_room_res = live_room_search.group(1).replace('\\"', '"')
         live_room_info = json.loads(live_room_res)
@@ -150,7 +159,8 @@ class Douyin:
             res_stream_flv = res_stream_flv.replace("http", "https")
         print(f"直播流FLV地址是: {res_stream_flv}")
         # 开始获取直播间排行
-        live_rank.interval_rank(liveRoomId)
+        # live_rank.interval_rank(liveRoomId)
+        return True
 
     def _send_ask(self, log_id, internal_ext):
         ack_pack = dy_pb2.PushFrame()
@@ -169,6 +179,7 @@ class Douyin:
         if payload_package.needAck:
             self._send_ask(msg_pack.logId, payload_package.internalExt)
         for msg in payload_package.messagesList:
+            # logger.info(str(msg))
             match msg.method:
                 case 'WebcastChatMessage':
                     await self._parse_chat_msg(msg.payload)
