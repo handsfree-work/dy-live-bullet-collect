@@ -104,6 +104,8 @@ class Douyin:
             async with websockets.connect(ws_url, extra_headers=headers) as ws_conn:
                 logger.info("直播间连接成功，等待消息推送")
                 self.ws_conn = ws_conn
+                success_message = DouyinMessage("control", "connect_success", "", "抖音弹幕链接成功")
+                await self._on_message(self.ws_conn, success_message)
                 await self._on_open(self.ws_conn)
                 async for message in ws_conn:
                     await self._on_message(self.ws_conn, message)

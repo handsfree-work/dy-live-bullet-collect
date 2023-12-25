@@ -45,6 +45,6 @@ Sex_Select:
   Sex: 0
 
 # 弹幕文件存储位置
-Barrage_File_Position: 'D:\python_project\excel'
+Barrage_File_Position: './temp/excel'
 # 用户信息存放位置
-User_File_Position: 'D:\python_project\userfile'
+User_File_Position: './temp/userfile'
