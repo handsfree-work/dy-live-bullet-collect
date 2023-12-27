@@ -49,12 +49,11 @@ class Douyin:
 
     def _get_room_info(self):
         payload = {}
+
         headers = {
-            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,'
-                      '*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/107.0.0.0 Safari/537.36',
-            'cookie': '__ac_nonce=0638733a400869171be51',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6045.160 Safari/537.36',
+            'cookie': 'msToken=feWMlseXLj6d3ha2Z8OQtFfw91vOTJoZCEtX2iqI8eB3Ri_2hLbToEbZj3CMwmieqBkwe9zGxVBB_m7I3017Qn6pyfBx45HTo7thNws-AbXdMJivoWM=; passport_fe_beating_status=false; IsDouyinActive=false; __ac_nonce=0658bdcc70075c7f880b6; __ac_signature=_02B4Z6wo00f01WL61bgAAIDDKmGM9fED9TFi2tEAAD056c;',
         }
 
         proxies = dict(http="", https="")
@@ -94,18 +93,20 @@ class Douyin:
         if not ret:
             raise Exception(f"直播间({room_id})还未开播")
 
-        ws_url = config.content['ws']['origin_url'].replace("%s", room_id)
+        ws_url = config.content['ws']['origin_url']
+        ws_url = ws_url.replace("${room_id}", room_id)
+        print(ws_url)
+        print("room_info", self.room_info)
         headers = {
             'cookie': 'ttwid=' + self.room_info.get('ttwid'),
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/108.0.0.0 Safari/537.36'
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6045.160 Safari/537.36'
         }
         try:
             async with websockets.connect(ws_url, extra_headers=headers) as ws_conn:
                 logger.info("直播间连接成功，等待消息推送")
                 self.ws_conn = ws_conn
                 success_message = DouyinMessage("control", "connect_success", "", "抖音弹幕链接成功")
-                await self._on_message(self.ws_conn, success_message)
+                await self.__on_message__(success_message)
                 await self._on_open(self.ws_conn)
                 async for message in ws_conn:
                     await self._on_message(self.ws_conn, message)
@@ -124,16 +125,23 @@ class Douyin:
         :param url:直播地址
         :return:
         """
+        # h = {
+        #     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        #     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+        #     'cookie': '__ac_nonce=0638733a400869171be51',
+        # }
         h = {
-            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
-            'cookie': '__ac_nonce=0638733a400869171be51',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6045.160 Safari/537.36',
+            'cookie': 'msToken=feWMlseXLj6d3ha2Z8OQtFfw91vOTJoZCEtX2iqI8eB3Ri_2hLbToEbZj3CMwmieqBkwe9zGxVBB_m7I3017Qn6pyfBx45HTo7thNws-AbXdMJivoWM=; passport_fe_beating_status=false; IsDouyinActive=false; __ac_nonce=0658bdcc70075c7f880b6; __ac_signature=_02B4Z6wo00f01WL61bgAAIDDKmGM9fED9TFi2tEAAD056c;',
         }
+
         res = requests.get(url=self.url, headers=h)
         global ttwid, roomStore, liveRoomId, liveRoomTitle, live_stream_url
         data = res.cookies.get_dict()
         ttwid = data['ttwid']
         res = res.text
+        print(res)
         res_room = re.search(r'roomId\\":\\"(\d+)\\"', res)
         # 获取直播主播的uid和昵称等信息
         live_room_search = re.search(r'owner\\":(.*?),\\"room_auth', res)

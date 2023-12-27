@@ -18,8 +18,6 @@ from douyin import Douyin, DouyinMessage
 sockets: List[web.WebSocketResponse] = []
 
 
-
-
 class Client:
     def __init__(self, ws: web.WebSocketResponse):
         self.room_id = None
@@ -85,8 +83,7 @@ async def wshandler(request: web.Request) -> Union[web.WebSocketResponse, web.Re
                 # 待定
                 print(info)
         elif msg.type == aiohttp.WSMsgType.ERROR:  # type: ignore[misc]
-            print('ws connection closed with exception %s' %
-                  ws.exception())
+            print('ws connection closed with exception %s' % ws.exception())
 
     print('客户端已下线，直播连接结束')
     await client.close()
