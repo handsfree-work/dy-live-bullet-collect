@@ -74,9 +74,9 @@ class MessageSender:
 
 async def main(client_id: int):
     sender = MessageSender()
-    closed_live = "785217135756"
-    opened_live = "590636107129"
-    await sender.connect_to_server(opened_live, client_id)
+    other_live = "527893761871"
+    xjn_live = "590636107129"
+    await sender.connect_to_server(other_live, client_id)
     await sender.send_and_receive()
 
 

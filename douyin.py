@@ -106,7 +106,7 @@ class Douyin:
                 logger.info("直播间连接成功，等待消息推送")
                 self.ws_conn = ws_conn
                 success_message = DouyinMessage("control", "connect_success", "", "抖音弹幕链接成功")
-                await self.__on_message__(success_message)
+                await self.__on_message__( success_message)
                 await self._on_open(self.ws_conn)
                 async for message in ws_conn:
                     await self._on_message(self.ws_conn, message)
@@ -141,7 +141,6 @@ class Douyin:
         data = res.cookies.get_dict()
         ttwid = data['ttwid']
         res = res.text
-        print(res)
         res_room = re.search(r'roomId\\":\\"(\d+)\\"', res)
         # 获取直播主播的uid和昵称等信息
         live_room_search = re.search(r'owner\\":(.*?),\\"room_auth', res)
